@@ -5,7 +5,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const currentYearEl = document.getElementById("current-year");
 
   if (nav && navToggle) {
-    navToggle.addEventListener("click", () => {
+    navToggle.addEventListener("click", (e) => {
+      e.stopPropagation();
       const isOpen = nav.classList.toggle("open");
       navToggle.setAttribute("aria-expanded", String(isOpen));
     });
@@ -17,6 +18,23 @@ document.addEventListener("DOMContentLoaded", () => {
           navToggle.setAttribute("aria-expanded", "false");
         }
       });
+    });
+
+    // Close menu when clicking outside (mobile)
+    document.addEventListener("click", (e) => {
+      if (nav.classList.contains("open") && !nav.contains(e.target)) {
+        nav.classList.remove("open");
+        navToggle.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    // Close menu on escape key
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && nav.classList.contains("open")) {
+        nav.classList.remove("open");
+        navToggle.setAttribute("aria-expanded", "false");
+        navToggle.focus();
+      }
     });
   }
 
@@ -35,7 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const getStep = () => Math.max(240, viewport.offsetWidth * 0.7);
+    const getStep = () => Math.max(200, viewport.offsetWidth * 0.6);
 
     controls.forEach((control) => {
       control.addEventListener("click", () => {
@@ -56,9 +74,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
       let animationFrameId;
       let lastTimestamp;
-      const scrollSpeed = carousel.dataset.carousel === "brands" ? 0.06 : 0.08;
+      let isPaused = false;
+      const scrollSpeed = carousel.dataset.carousel === "brands" ? 0.04 : 0.06;
 
       const autoScroll = (timestamp) => {
+        if (isPaused) {
+          animationFrameId = requestAnimationFrame(autoScroll);
+          return;
+        }
+
         if (lastTimestamp == null) {
           lastTimestamp = timestamp;
         }
@@ -88,8 +112,43 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       };
 
+      // Pause on touch/hover for better mobile experience
+      let pauseTimeout;
+      const pauseAutoScroll = () => {
+        isPaused = true;
+        lastTimestamp = null;
+        clearTimeout(pauseTimeout);
+        pauseTimeout = setTimeout(() => {
+          isPaused = false;
+        }, 3000);
+      };
+
+      viewport.addEventListener("touchstart", pauseAutoScroll, { passive: true });
+      viewport.addEventListener("mouseenter", pauseAutoScroll);
+      viewport.addEventListener("wheel", pauseAutoScroll, { passive: true });
+
       startAutoScroll();
     }
+  });
+
+  // Smooth scroll for anchor links (better mobile experience)
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener("click", function(e) {
+      const targetId = this.getAttribute("href");
+      if (targetId === "#") return;
+      
+      const target = document.querySelector(targetId);
+      if (target) {
+        e.preventDefault();
+        const headerHeight = document.querySelector(".site-header")?.offsetHeight || 0;
+        const targetPosition = target.getBoundingClientRect().top + window.pageYOffset - headerHeight;
+        
+        window.scrollTo({
+          top: targetPosition,
+          behavior: "smooth"
+        });
+      }
+    });
   });
 });
 
